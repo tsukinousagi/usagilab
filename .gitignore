@@ -1,0 +1,5 @@
+application/config/*.php
+application/logs/
+application/cache/
+cache/
+files/alive.7z
