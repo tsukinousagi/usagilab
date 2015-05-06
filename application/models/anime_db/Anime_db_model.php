@@ -32,7 +32,7 @@ class Anime_db_model extends CI_Model {
         //延長執行時間
         set_time_limit(300);
         //限制取得筆數
-        $limit = 10;
+        $limit = 15;
         //限制執行時間
         $bomb = 240;
 
@@ -185,11 +185,16 @@ class Anime_db_model extends CI_Model {
     //從cal.syoboi.jp取得某節目的維基百科連結
     public function get_title_wikipedia_link($src) {
         $html = str_get_html($src);
-        $link = $html->find('a[title^="Wikipedia:"]', 0)->href;
+        $link = $html->find('a[title^="Wikipedia:"]', 0);
+        if (is_object($link)) {
+            $href = $link->href;
+        } else {
+            $href = '';
+        }
         $html->clear();
         $html = null;
         unset($html);
-        return $link;
+        return $href;
     }
 
     //從維基百科取得中文頁面
