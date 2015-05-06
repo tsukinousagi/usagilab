@@ -29,9 +29,8 @@ class Anime_db_model extends CI_Model {
     }
 
     public function fetch_title() {
-        ini_set('memory_limit', '256M');
         //限制取得筆數
-        $limit = 5;
+        $limit = 10;
 
         //cal.syoboi.jp節目清單分類參數
         $syoboi_jp_category = array(1,10,7,4,8);
@@ -121,6 +120,7 @@ class Anime_db_model extends CI_Model {
                 $result[] = $title;
             }
         }
+        $html->clear();
         $html = null;
         unset($html);
         return $result;
@@ -131,6 +131,7 @@ class Anime_db_model extends CI_Model {
         $result = array();
         $html = str_get_html($src);
         $link = $html->find('a[rel=contents]', 0)->href;
+        $html->clear();
         $html = null;
         unset($html);
         if (preg_match('/[0-9]+/', $link, $matches)) {
@@ -159,6 +160,7 @@ class Anime_db_model extends CI_Model {
                 $first_id = 0;
             }
         }
+        $html->clear();
         $html = null;
         unset($html);
         return $first_id;
@@ -168,6 +170,7 @@ class Anime_db_model extends CI_Model {
     public function get_title_wikipedia_link($src) {
         $html = str_get_html($src);
         $link = $html->find('a[title^="Wikipedia:"]', 0)->href;
+        $html->clear();
         $html = null;
         unset($html);
         return $link;
@@ -182,6 +185,7 @@ class Anime_db_model extends CI_Model {
         } else {
             $href = '';
         }
+        $html->clear();
         $html = null;
         unset($html);
         return $href;
@@ -191,6 +195,7 @@ class Anime_db_model extends CI_Model {
     public function get_zh_title_from_wikipedia($src) {
         $html = str_get_html($src);
         $title = $html->find('h1#firstHeading', 0)->plaintext;
+        $html->clear();
         $html = null;
         unset($html);
         return $title;

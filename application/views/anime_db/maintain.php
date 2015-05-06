@@ -101,6 +101,9 @@ $(document).ready(function() {
             success: function(text) {
                 $('#btn_run').prop('disabled', false);
             },
+            error: function(text) {
+                $('#btn_run').prop('disabled', false);
+            },
         });
     });
 });
