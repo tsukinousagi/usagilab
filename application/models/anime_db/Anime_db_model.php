@@ -29,6 +29,8 @@ class Anime_db_model extends CI_Model {
     }
 
     public function fetch_title() {
+        //記憶體
+        ini_set('memory_limit', '256M');
         //延長執行時間
         set_time_limit(300);
         //限制取得筆數
