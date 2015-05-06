@@ -2,4 +2,5 @@ application/config/*.php
 application/logs/
 application/cache/
 cache/
+logs/
 files/alive.7z
