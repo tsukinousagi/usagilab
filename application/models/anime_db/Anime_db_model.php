@@ -29,14 +29,25 @@ class Anime_db_model extends CI_Model {
     }
 
     public function fetch_title() {
+        //延長執行時間
+        set_time_limit(300);
         //限制取得筆數
         $limit = 10;
+        //限制執行時間
+        $bomb = 240;
+
+        //計時開始
+        $start = time();
 
         //cal.syoboi.jp節目清單分類參數
         $syoboi_jp_category = array(1,10,7,4,8);
         foreach ($syoboi_jp_category as $c) {
             //檢查計數
             if ($limit <= 0) {
+                break;
+            }
+            //檢查執行時間
+            if ((time() - $start) > $bomb) {
                 break;
             }
             //取得所有動畫標題清單
@@ -99,6 +110,11 @@ class Anime_db_model extends CI_Model {
                     $limit--;
                     if ($limit <= 0) {
                         $this->msg('已達本次最大處理數目');
+                        break;
+                    }
+                    //檢查執行時間
+                    if ((time() - $start) > $bomb) {
+                        $this->msg('已達執行時間限制');
                         break;
                     }
                 } else {
