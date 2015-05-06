@@ -71,6 +71,7 @@ class Anime_db_model extends CI_Model {
                         $this->msg('此系列目前只有一個作品');
                     }
                     //去維基百科查中文標題
+                    $title_zh = '';
                     $wikipedia_link = $this->get_title_wikipedia_link($src);
                     if ($wikipedia_link <> '') {
                         $src = $this->get_page($wikipedia_link);
@@ -83,7 +84,6 @@ class Anime_db_model extends CI_Model {
                             $this->msg(sprintf('作品中文標題為: %s', $title_zh));
                         } else {
                             $this->msg('找不到此作品的中文標題');
-                            $title_zh = '';
                         }
                     }
                     //寫入資料庫
