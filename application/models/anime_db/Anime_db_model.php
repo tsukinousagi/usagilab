@@ -200,13 +200,17 @@ class Anime_db_model extends CI_Model {
     //從維基百科取得中文頁面
     public function get_zh_link_from_wikipedia($src) {
         $html = str_get_html($src);
-        $link = $html->find('li.interwiki-zh a', 0);
-        if (is_object($link)) {
-            $href = $link->href;
+        if (is_object($html)) {
+            $link = $html->find('li.interwiki-zh a', 0);
+            if (is_object($link)) {
+                $href = $link->href;
+            } else {
+                $href = '';
+            }
+            $html->clear();
         } else {
             $href = '';
         }
-        $html->clear();
         $html = null;
         unset($html);
         return $href;
