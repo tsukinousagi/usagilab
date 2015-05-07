@@ -34,9 +34,9 @@ class Anime_db_model extends CI_Model {
         //延長執行時間
         set_time_limit(300);
         //限制取得筆數
-        $limit = 15;
+        $limit = 100;
         //限制執行時間
-        $bomb = 240;
+        $bomb = 270;
 
         //計時開始
         $start = time();
@@ -341,6 +341,7 @@ class Anime_db_model extends CI_Model {
     //處理問題網址
     public function fix_url($url) {
         $url = str_replace(' ', '%20', $url);
+        $url = str_replace('&amp;', '&', $url);
         return $url;
     }
 
