@@ -34,7 +34,7 @@ class Anime_db_model extends CI_Model {
         //延長執行時間
         set_time_limit(300);
         //限制取得筆數
-        $limit = 100;
+        $limit = 1;
         //限制執行時間
         $bomb = 270;
 
@@ -76,12 +76,14 @@ class Anime_db_model extends CI_Model {
                     $title_zh = '';
                     $wikipedia_link = $this->get_title_wikipedia_link($src);
                     if ($wikipedia_link <> '') {
+                        //換成API的網址
+                        $wikipedia_title_ja = str_replace('http://ja.wikipedia.org/wiki/', '', $wikipedia_link);
+                        $this->msg(sprintf('日語維基條目名稱為: %s', $wikipedia_title_ja));
+                        $wikipedia_link = sprintf('http://ja.wikipedia.org/w/api.php?action=query&prop=langlinks&format=xml&titles=%s&redirects=', $wikipedia_title_ja);
                         $src = $this->get_page($wikipedia_link);
                         $link_zh = $this->get_zh_link_from_wikipedia($src);
                         if ($link_zh <> '') {
-                            //強制使用繁體中文的維基百科頁面
-                            $link_zh = str_replace('/wiki/', '/zh-tw/', $link_zh);
-                            $src = $this->get_page('http:' . $link_zh);
+                            $src = $this->get_page($link_zh);
                             $title_zh = $this->get_zh_title_from_wikipedia($src);
                             $this->msg(sprintf('作品中文標題為: %s', $title_zh));
                         } else {
@@ -201,27 +203,27 @@ class Anime_db_model extends CI_Model {
 
     //從維基百科取得中文頁面
     public function get_zh_link_from_wikipedia($src) {
-        $html = str_get_html($src);
-        if (is_object($html)) {
-            $link = $html->find('li.interwiki-zh a', 0);
-            if (is_object($link)) {
-                $href = $link->href;
-            } else {
-                $href = '';
+        $xml = simplexml_load_string($src);
+        $zh_link_part = '';
+        foreach ($xml->query->pages->page->langlinks->ll as $ll) {
+            if ($ll['lang'] == 'zh') {
+                $zh_link_part = $ll[0];
+                break;
             }
-            $html->clear();
-        } else {
-            $href = '';
         }
-        $html = null;
-        unset($html);
-        return $href;
+        if ($zh_link_part <> '') {
+            $link = sprintf('http://zh.m.wikipedia.org/zh-tw/%s', $zh_link_part);
+        }
+        return $link;
     }
 
     //從維基百科取得中文標題
     public function get_zh_title_from_wikipedia($src) {
         $html = str_get_html($src);
-        $title = $html->find('h1#firstHeading', 0)->plaintext;
+        //桌面版網頁
+//        $title = $html->find('h1#firstHeading', 0)->plaintext;
+        //行動版網頁
+        $title = $html->find('h1#section_0', 0)->plaintext;
         $html->clear();
         $html = null;
         unset($html);
