@@ -34,96 +34,88 @@ class Anime_db_model extends CI_Model {
         //延長執行時間
         set_time_limit(300);
         //限制取得筆數
-        $limit = 1;
+        $limit = 999;
         //限制執行時間
         $bomb = 270;
 
         //計時開始
         $start = time();
 
-        //cal.syoboi.jp節目清單分類參數
-        $syoboi_jp_category = array(1,10,7,4,8);
-        foreach ($syoboi_jp_category as $c) {
-            //檢查計數
-            if ($limit <= 0) {
-                break;
-            }
-            //檢查執行時間
-            if ((time() - $start) > $bomb) {
-                break;
-            }
-            //取得所有動畫標題清單
-            $src = $this->get_page(sprintf('http://cal.syoboi.jp/list?cat=%d', $c));
-            $titles = $this->get_all_titles($src);
-            foreach($titles as $t) {
-                $this->msg(sprintf('處理項目: %s(%d)', $t['title'], $t['id']));
-                //先查db看這作品是不是需要再處理
-                $title_exists = $this->check_update_status($t['id']);
-                if ($title_exists <> 'ok') {
-                    $src = $this->get_page(sprintf('http://cal.syoboi.jp/tid/%d', $t['id']));
+        //取得syoboi.jp所有節目清單
+        $src = $this->get_page('http://cal.syoboi.jp/db.php?Command=TitleLookup&TID=*&Fields=TID,Title,Cat');
+//        $src = $this->get_page('http://cal.syoboi.jp/db.php?Command=TitleLookup&TID=3595,2937,1487,2691&Fields=TID,Title,Cat');
+        $titles = $this->get_all_titles($src);
+        //取得目前資料庫資料正確的tid
+        //丟進迴圈跑, 略過不需要處理的項目
 
-                    //取得分類(雖然暫時用不到)
-                    $category = $this->get_title_category($src);
+        foreach($titles as $t) {
+            $this->msg(sprintf('處理項目: %s(%d)', $t['title'], $t['id']));
+            //先查db看這作品是不是需要再處理
+            $title_exists = $this->check_update_status($t['id']);
+            if ($title_exists <> 'ok') {
+                $src = $this->get_page(sprintf('http://cal.syoboi.jp/tid/%d', $t['id']));
 
-                    //找出此系列的第一個作品
-                    $first = $this->get_first_in_series($src);
-                    if ($first) {
-                        $this->msg(sprintf('此系列第一個作品ID: %d', $first));
-                    } else {
-                        $this->msg('此系列目前只有一個作品');
-                    }
-                    //去維基百科查中文標題
-                    $title_zh = '';
-                    $wikipedia_link = $this->get_title_wikipedia_link($src);
-                    if ($wikipedia_link <> '') {
-                        //換成API的網址
-                        $wikipedia_title_ja = str_replace('http://ja.wikipedia.org/wiki/', '', $wikipedia_link);
-                        $this->msg(sprintf('日語維基條目名稱為: %s', $wikipedia_title_ja));
-                        $wikipedia_link = sprintf('http://ja.wikipedia.org/w/api.php?action=query&prop=langlinks&format=xml&titles=%s&redirects=', $wikipedia_title_ja);
-                        $src = $this->get_page($wikipedia_link);
-                        $link_zh = $this->get_zh_link_from_wikipedia($src);
-                        if ($link_zh <> '') {
-                            $src = $this->get_page($link_zh);
-                            $title_zh = $this->get_zh_title_from_wikipedia($src);
-                            $this->msg(sprintf('作品中文標題為: %s', $title_zh));
-                        } else {
-                            $this->msg('找不到此作品的中文標題');
-                        }
-                    }
-                    //寫入資料庫
-                    $this->msg('寫入資料庫', 0);
-                    $data = array(
-                        'title_jp' => $t['title'],
-                        'title_zh' => $title_zh,
-                        'syoboi_jp_id' => $t['id'],
-                        'parent_syoboi_jp_id' => $first,
-                    );
-                    $ret = FALSE;
-                    if ($title_exists == 'update') {
-                        $ret = $this->update_title($data);
-                    } else if ($title_exists == 'create') {
-                        $ret = $this->create_title($data);
-                    }
-                    if ($ret) {
-                        $this->msg('成功');
-                    } else {
-                        $this->msg('失敗');
-                    }
-                    $this->msg(sprintf('目前記憶體用量: %d', memory_get_usage()));
-                    //檢查計數
-                    $limit--;
-                    if ($limit <= 0) {
-                        $this->msg('已達本次最大處理數目');
-                        break;
-                    }
-                    //檢查執行時間
-                    if ((time() - $start) > $bomb) {
-                        $this->msg('已達執行時間限制');
-                        break;
-                    }
+                //取得分類(雖然暫時用不到)
+                $category = $this->get_title_category($src);
+
+                //找出此系列的第一個作品
+                $first = $this->get_first_in_series($src);
+                if ($first) {
+                    $this->msg(sprintf('此系列第一個作品ID: %d', $first));
                 } else {
-                    $this->msg('略過');
+                    $this->msg('此系列目前只有一個作品');
                 }
+                //去維基百科查中文標題
+                $title_zh = '';
+                $wikipedia_link = $this->get_title_wikipedia_link($src);
+                if ($wikipedia_link <> '') {
+                    //換成API的網址
+                    $wikipedia_title_ja = str_replace('http://ja.wikipedia.org/wiki/', '', $wikipedia_link);
+                    $this->msg(sprintf('日語維基條目名稱為: %s', $wikipedia_title_ja));
+                    $wikipedia_link = sprintf('http://ja.wikipedia.org/w/api.php?action=query&prop=langlinks&format=xml&titles=%s&redirects=&continue=', $wikipedia_title_ja);
+                    $src = $this->get_page($wikipedia_link);
+                    $link_zh = $this->get_zh_link_from_wikipedia($src);
+                    if ($link_zh <> '') {
+                        $src = $this->get_page($link_zh);
+                        $title_zh = $this->get_zh_title_from_wikipedia($src);
+                        $this->msg(sprintf('作品中文標題為: %s', $title_zh));
+                    } else {
+                        $this->msg('找不到此作品的中文標題');
+                    }
+                }
+                //寫入資料庫
+                $this->msg('寫入資料庫', 0);
+                $data = array(
+                    'title_jp' => $t['title'],
+                    'title_zh' => $title_zh,
+                    'syoboi_jp_id' => $t['id'],
+                    'parent_syoboi_jp_id' => $first,
+                );
+                $ret = FALSE;
+                if ($title_exists == 'update') {
+                    $ret = $this->update_title($data);
+                } else if ($title_exists == 'create') {
+                    $ret = $this->create_title($data);
+                }
+                if ($ret) {
+                    $this->msg('成功');
+                } else {
+                    $this->msg('失敗');
+                }
+                $this->msg(sprintf('目前記憶體用量: %d', memory_get_usage()));
+                //檢查計數
+                $limit--;
+                if ($limit <= 0) {
+                    $this->msg('已達本次最大處理數目');
+                    break;
+                }
+                //檢查執行時間
+                if ((time() - $start) > $bomb) {
+                    $this->msg('已達執行時間限制');
+                    break;
+                }
+            } else {
+                $this->msg('略過');
             }
         }
 
@@ -133,6 +125,8 @@ class Anime_db_model extends CI_Model {
     //從cal.syoboi.jp取得所有動畫節目標題
     public function get_all_titles($src) {
         $result = array();
+        //old
+        /*
         $html = str_get_html($src);
         foreach($html->find('table.TitleList tbody tr td a') as $titles) {
             if (preg_match('/[0-9]+/', $titles->href, $matches)) {
@@ -143,6 +137,22 @@ class Anime_db_model extends CI_Model {
         $html->clear();
         $html = null;
         unset($html);
+         */
+        //new
+        $xml = simplexml_load_string($src);
+        if ($xml->Result->Code <> '200') {
+            return FALSE;
+        } else {
+            //有效的節目分類
+            $valid_cats = array(1,10,7,4,8);
+            foreach($xml->TitleItems->TitleItem as $t) {
+                $t2 = (array)$t;
+                if (in_array($t->Cat, $valid_cats)) {
+                    $title = array('id' => $t2['TID'], 'title' => $t2['Title']);
+                    $result[] = $title;
+                }
+            }
+        }
         return $result;
     }
 
@@ -205,16 +215,22 @@ class Anime_db_model extends CI_Model {
     public function get_zh_link_from_wikipedia($src) {
         $xml = simplexml_load_string($src);
         $zh_link_part = '';
-        foreach ($xml->query->pages->page->langlinks->ll as $ll) {
-            if ($ll['lang'] == 'zh') {
-                $zh_link_part = $ll[0];
-                break;
+        if (isset($xml->query->pages->page->langlinks->ll)) {
+            foreach ($xml->query->pages->page->langlinks->ll as $ll) {
+                if ($ll['lang'] == 'zh') {
+                    $zh_link_part = $ll[0];
+                    break;
+                }
             }
+            if ($zh_link_part <> '') {
+                $link = sprintf('http://zh.m.wikipedia.org/zh-tw/%s', $zh_link_part);
+            } else {
+                $link = '';
+            }
+            return $link;
+        } else {
+            return FALSE;
         }
-        if ($zh_link_part <> '') {
-            $link = sprintf('http://zh.m.wikipedia.org/zh-tw/%s', $zh_link_part);
-        }
-        return $link;
     }
 
     //從維基百科取得中文標題
@@ -253,9 +269,11 @@ class Anime_db_model extends CI_Model {
         $sql = sprintf("INSERT INTO `anime_title` (
                         `title_jp`, `title_zh`, `syoboi_jp_id`, `parent_syoboi_jp_id`, `update_flag`, `update_at`
                         ) VALUES (
-                            '%s', '%s', %d, %d, %d, NOW())",
-                        $data['title_jp'], $data['title_zh'], $data['syoboi_jp_id'],
-                        $data['parent_syoboi_jp_id'], 0);
+                            %s, %s, %d, %d, %d, NOW())",
+                            $this->db->escape($data['title_jp']),
+                            $this->db->escape($data['title_zh']),
+                            $this->db->escape($data['syoboi_jp_id']),
+                            $this->db->escape($data['parent_syoboi_jp_id']), 0);
         $query = $this->db->query($sql);
         return $query;
     }
@@ -263,16 +281,16 @@ class Anime_db_model extends CI_Model {
     //更新作品
     public function update_title($data) {
         $sql = sprintf("UPDATE `anime_title` SET
-            `title_jp` = '%s',
-            `title_zh` = '%s',
+            `title_jp` = %s,
+            `title_zh` = %s,
             `parent_syoboi_jp_id` = %d,
             `update_flag` = %d,
             `update_at` = NOW()
             WHERE
             `syoboi_jp_id` = %d
             ",
-            $data['title_jp'], $data['title_zh'],
-            $data['parent_syoboi_jp_id'], 0, $data['syoboi_jp_id']);
+            $this->db->escape($data['title_jp']), $this->db->escape($data['title_zh']),
+            $this->db->escape($data['parent_syoboi_jp_id']), 0, $this->db->escape($data['syoboi_jp_id']));
         $query = $this->db->query($sql);
         return $query;
     }
