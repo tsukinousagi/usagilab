@@ -77,16 +77,27 @@ class Anime_db_model extends CI_Model {
                     //換成API的網址
                     $wikipedia_title_ja = str_replace('http://ja.wikipedia.org/wiki/', '', $wikipedia_link);
                     $this->msg(sprintf('日語維基條目名稱為: %s', $wikipedia_title_ja));
-                    $wikipedia_link = sprintf('http://ja.wikipedia.org/w/api.php?action=query&prop=langlinks&format=xml&titles=%s&redirects=&continue=', $wikipedia_title_ja);
-                    $src = $this->get_page($wikipedia_link);
-                    $link_zh = $this->get_zh_link_from_wikipedia($src);
+                    $wikipedia_link_jp = sprintf('http://ja.wikipedia.org/w/api.php?action=query&prop=langlinks&format=xml&titles=%s&redirects=&continue=', $wikipedia_title_ja);
+                    $src = $this->get_page($wikipedia_link_jp);
+                    $link_zh = $this->get_zh_link_from_wikipedia_api($src);
                     if ($link_zh <> '') {
                         $src = $this->get_page($link_zh);
                         $title_zh = $this->get_zh_title_from_wikipedia($src);
                         $this->msg(sprintf('作品中文標題為: %s', $title_zh));
                     } else {
-                        $this->msg('找不到此作品的中文標題');
+                        //如果api找不到, 再次嘗試從頁面找中文標題
+                        $src = $this->get_page($wikipedia_link);
+                        $link_zh = $this->get_zh_link_from_wikipedia($src);
+                        if ($link_zh <> '') {
+                            $src = $this->get_page($link_zh);
+                            $title_zh = $this->get_zh_title_from_wikipedia($src);
+                            $this->msg(sprintf('作品中文標題為: %s', $title_zh));
+                        } else {
+                            $this->msg('找不到此作品的中文標題');
+                        }
                     }
+                } else {
+                    $this->msg('cal.syoboi.jp沒有維基百科連結');
                 }
                 //寫入資料庫
                 $this->msg('寫入資料庫', 0);
@@ -217,7 +228,7 @@ class Anime_db_model extends CI_Model {
     }
 
     //從維基百科取得中文頁面
-    public function get_zh_link_from_wikipedia($src) {
+    public function get_zh_link_from_wikipedia_api($src) {
         $xml = simplexml_load_string($src);
         $zh_link_part = '';
         if (isset($xml->query->pages->page->langlinks->ll)) {
@@ -236,6 +247,28 @@ class Anime_db_model extends CI_Model {
         } else {
             return FALSE;
         }
+    }
+
+    //從維基百科取得中文頁面
+    public function get_zh_link_from_wikipedia($src) {
+        $html = str_get_html($src);
+        if (is_object($html)) {
+            $link = $html->find('li.interwiki-zh a', 0);
+            if (is_object($link)) {
+                $href = $link->href;
+                //給行動版網址
+                $href = str_replace('zh.wikipedia.org/wiki/', 'zh.m.wikipedia.org/zh-tw/', $href);
+                $href = 'http:' . $href;
+            } else {
+                $href = '';
+            }
+            $html->clear();
+        } else {
+            $href = '';
+        }
+        $html = null;
+        unset($html);
+        return $href;
     }
 
     //從維基百科取得中文標題
@@ -382,6 +415,8 @@ class Anime_db_model extends CI_Model {
     //處理問題網址
     public function fix_url($url) {
         $url = str_replace(' ', '%20', $url);
+        $url = str_replace("&#039;", "%27", $url);
+        $url = str_replace("&amp;", "%26", $url);
 //        $url = str_replace('&amp;', '&', $url);
         return $url;
     }
