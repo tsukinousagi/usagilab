@@ -6,6 +6,10 @@ class Anime_db_model extends CI_Model {
     public $cache_dir = 'cache/';
     public $cache_expire = 86400;
 
+    //暫存db的title狀態
+    public $valid_syoboi_jp_id;
+    public $update_syoboi_jp_id;
+
 
     function __construct() {
         parent::__construct();
@@ -46,6 +50,8 @@ class Anime_db_model extends CI_Model {
 //        $src = $this->get_page('http://cal.syoboi.jp/db.php?Command=TitleLookup&TID=3595,2937,1487,2691&Fields=TID,Title,Cat');
         $titles = $this->get_all_titles($src);
         //取得目前資料庫資料正確的tid
+        $this->valid_syoboi_jp_id = $this->get_current_titles(0);
+        $this->update_syoboi_jp_id = $this->get_current_titles(1);
         //丟進迴圈跑, 略過不需要處理的項目
 
         foreach($titles as $t) {
@@ -248,19 +254,17 @@ class Anime_db_model extends CI_Model {
 
     //取得該作品更新狀態
     public function check_update_status($syoboi_jp_id) {
-        $sql = "SELECT `update_flag` FROM `anime_title`
-                WHERE `syoboi_jp_id` = %d";
-        $sql = sprintf($sql, $syoboi_jp_id);
-        $query = $this->db->query($sql);
-        $ret = $query->result_array();
-        if (sizeof($ret) > 0) {
-            if ($ret[0]['update_flag'] == '1') {
-                return 'update';
-            } else {
-                return 'ok';
-            }
+        if ($syoboi_jp_id <= 0) {
+            $this->msg('為什麼id會有0, 這絕對很奇怪啊.');
+            die();
         } else {
-            return 'create';
+            if (in_array($syoboi_jp_id, $this->update_syoboi_jp_id)) {
+                return 'update';
+            } else if (in_array($syoboi_jp_id, $this->valid_syoboi_jp_id)) {
+                return 'ok';
+            } else {
+                return 'create';
+            }
         }
     }
 
@@ -293,6 +297,24 @@ class Anime_db_model extends CI_Model {
             $this->db->escape($data['parent_syoboi_jp_id']), 0, $this->db->escape($data['syoboi_jp_id']));
         $query = $this->db->query($sql);
         return $query;
+    }
+
+    //取得目前資料庫資料正確的TID
+    public function get_current_titles($flag) {
+        $sql = "SELECT `syoboi_jp_id` FROM `anime_title` WHERE
+                `update_flag` = %d";
+        $sql = sprintf($sql, $this->db->escape($flag));
+        $query = $this->db->query($sql);
+        if ($query) {
+            $ret = $query->result_array();
+            $valid_ids = array();
+            foreach($ret as $v) {
+                $valid_ids[] = $v['syoboi_jp_id'];
+            }
+            return $valid_ids;
+        } else {
+            return FALSE;
+        }
     }
 
     //取得快取內容
@@ -361,7 +383,7 @@ class Anime_db_model extends CI_Model {
     //處理問題網址
     public function fix_url($url) {
         $url = str_replace(' ', '%20', $url);
-        $url = str_replace('&amp;', '&', $url);
+//        $url = str_replace('&amp;', '&', $url);
         return $url;
     }
 
