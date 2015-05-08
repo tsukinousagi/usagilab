@@ -274,14 +274,18 @@ class Anime_db_model extends CI_Model {
     //從維基百科取得中文標題
     public function get_zh_title_from_wikipedia($src) {
         $html = str_get_html($src);
-        //桌面版網頁
-//        $title = $html->find('h1#firstHeading', 0)->plaintext;
-        //行動版網頁
-        $title = $html->find('h1#section_0', 0)->plaintext;
-        $html->clear();
-        $html = null;
-        unset($html);
-        return $title;
+        if (is_object($html)) {
+            //桌面版網頁
+    //        $title = $html->find('h1#firstHeading', 0)->plaintext;
+            //行動版網頁
+            $title = $html->find('h1#section_0', 0)->plaintext;
+            $html->clear();
+            $html = null;
+            unset($html);
+            return $title;
+        } else {
+            return '';
+        }
     }
 
     //取得該作品更新狀態
