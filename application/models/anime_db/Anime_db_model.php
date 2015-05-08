@@ -27,7 +27,6 @@ class Anime_db_model extends CI_Model {
             echo(rand(0,9999) . PHP_EOL);
             @ob_flush();
             flush();
-//            sleep(rand(1,3));
         }
         echo('Done!');
     }
@@ -94,8 +93,8 @@ class Anime_db_model extends CI_Model {
                 $data = array(
                     'title_jp' => $t['title'],
                     'title_zh' => $title_zh,
-                    'syoboi_jp_id' => $t['id'],
-                    'parent_syoboi_jp_id' => $first,
+                    'syoboi_jp_id' => intval($t['id']),
+                    'parent_syoboi_jp_id' => intval($first),
                 );
                 $ret = FALSE;
                 if ($title_exists == 'update') {
