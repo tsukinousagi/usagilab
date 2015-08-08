@@ -73,14 +73,16 @@ class Anime_db_model extends CI_Model {
                 }
                 //去維基百科查中文標題
                 $title_zh = '';
+                $title_en = '';
                 $wikipedia_link = $this->get_title_wikipedia_link($src);
                 if ($wikipedia_link <> '') {
                     //換成API的網址
                     $wikipedia_title_ja = str_replace('http://ja.wikipedia.org/wiki/', '', $wikipedia_link);
                     $this->msg(sprintf('日語維基條目名稱為: %s', $wikipedia_title_ja));
                     $wikipedia_link_jp = sprintf('http://ja.wikipedia.org/w/api.php?action=query&prop=langlinks&format=xml&titles=%s&redirects=&continue=', $wikipedia_title_ja);
-                    $src = $this->get_page($wikipedia_link_jp);
-                    $link_zh = $this->get_zh_link_from_wikipedia_api($src);
+                    $src_jp = $this->get_page($wikipedia_link_jp);
+                    //中文連結
+                    $link_zh = $this->get_zh_link_from_wikipedia_api($src_jp);
                     if ($link_zh <> '') {
                         $src = $this->get_page($link_zh);
                         $title_zh = $this->get_zh_title_from_wikipedia($src);
@@ -97,6 +99,24 @@ class Anime_db_model extends CI_Model {
                             $this->msg('找不到此作品的中文標題');
                         }
                     }
+                    //英文連結
+                    $link_en = $this->get_en_link_from_wikipedia_api($src_jp);
+                    if ($link_en <> '') {
+                        $src = $this->get_page($link_en);
+                        $title_en = $this->get_zh_title_from_wikipedia($src);
+                        $this->msg(sprintf('作品英文標題為: %s', $title_en));
+                    } else {
+                        //如果api找不到, 再次嘗試從頁面找英文標題
+                        $src = $this->get_page($wikipedia_link);
+                        $link_en = $this->get_en_link_from_wikipedia($src);
+                        if ($link_en <> '') {
+                            $src = $this->get_page($link_en);
+                            $title_en = $this->get_zh_title_from_wikipedia($src);
+                            $this->msg(sprintf('作品英文標題為: %s', $title_en));
+                        } else {
+                            $this->msg('找不到此作品的英文標題');
+                        }
+                    }
                 } else {
                     $this->msg('cal.syoboi.jp沒有維基百科連結');
                 }
@@ -105,6 +125,7 @@ class Anime_db_model extends CI_Model {
                 $data = array(
                     'title_jp' => $t['title'],
                     'title_zh' => $title_zh,
+                    'title_en' => $title_en,
                     'syoboi_jp_id' => intval($t['id']),
                     'parent_syoboi_jp_id' => intval($first),
                 );
@@ -251,6 +272,28 @@ class Anime_db_model extends CI_Model {
         }
     }
 
+    //從維基百科取得英文頁面
+    public function get_en_link_from_wikipedia_api($src) {
+        $xml = simplexml_load_string($src);
+        $en_link_part = '';
+        if (isset($xml->query->pages->page->langlinks->ll)) {
+            foreach ($xml->query->pages->page->langlinks->ll as $ll) {
+                if ($ll['lang'] == 'en') {
+                    $en_link_part = $ll[0];
+                    break;
+                }
+            }
+            if ($en_link_part <> '') {
+                $link = sprintf('http://en.m.wikipedia.org/wiki/%s', $en_link_part);
+            } else {
+                $link = '';
+            }
+            return $link;
+        } else {
+            return FALSE;
+        }
+    }
+
     //從維基百科取得中文頁面
     public function get_zh_link_from_wikipedia($src) {
         $html = str_get_html($src);
@@ -260,6 +303,28 @@ class Anime_db_model extends CI_Model {
                 $href = $link->href;
                 //給行動版網址
                 $href = str_replace('zh.wikipedia.org/wiki/', 'zh.m.wikipedia.org/zh-tw/', $href);
+                $href = 'http:' . $href;
+            } else {
+                $href = '';
+            }
+            $html->clear();
+        } else {
+            $href = '';
+        }
+        $html = null;
+        unset($html);
+        return $href;
+    }
+
+    //從維基百科取得英文頁面
+    public function get_en_link_from_wikipedia($src) {
+        $html = str_get_html($src);
+        if (is_object($html)) {
+            $link = $html->find('li.interwiki-en a', 0);
+            if (is_object($link)) {
+                $href = $link->href;
+                //給行動版網址
+                $href = str_replace('en.wikipedia.org/wiki/', 'en.m.wikipedia.org/wiki/', $href);
                 $href = 'http:' . $href;
             } else {
                 $href = '';
@@ -309,11 +374,12 @@ class Anime_db_model extends CI_Model {
     //新增作品
     public function create_title($data) {
         $sql = sprintf("INSERT INTO `anime_title` (
-                        `title_jp`, `title_zh`, `syoboi_jp_id`, `parent_syoboi_jp_id`, `update_flag`, `update_at`
+                        `title_jp`, `title_zh`, `title_en`, `syoboi_jp_id`, `parent_syoboi_jp_id`, `update_flag`, `update_at`
                         ) VALUES (
                             %s, %s, %d, %d, %d, NOW())",
                             $this->db->escape($data['title_jp']),
                             $this->db->escape($data['title_zh']),
+                            $this->db->escape($data['title_en']),
                             $this->db->escape($data['syoboi_jp_id']),
                             $this->db->escape($data['parent_syoboi_jp_id']), 0);
         $query = $this->db->query($sql);
@@ -325,13 +391,14 @@ class Anime_db_model extends CI_Model {
         $sql = sprintf("UPDATE `anime_title` SET
             `title_jp` = %s,
             `title_zh` = %s,
+            `title_en` = %s,
             `parent_syoboi_jp_id` = %d,
             `update_flag` = %d,
             `update_at` = NOW()
             WHERE
             `syoboi_jp_id` = %d
             ",
-            $this->db->escape($data['title_jp']), $this->db->escape($data['title_zh']),
+            $this->db->escape($data['title_jp']), $this->db->escape($data['title_zh']), $this->db->escape($data['title_en']),
             $this->db->escape($data['parent_syoboi_jp_id']), 0, $this->db->escape($data['syoboi_jp_id']));
         $query = $this->db->query($sql);
         return $query;
@@ -357,7 +424,7 @@ class Anime_db_model extends CI_Model {
 
     //取得資料庫內容用JSON輸出
     public function api_get_titles($begin, $count) {
-        $sql = "SELECT `syoboi_jp_id`, `title_jp`, `title_zh`
+        $sql = "SELECT `syoboi_jp_id`, `title_jp`, `title_zh`, `title_en`, `title_en`
             FROM `anime_title`
             ORDER BY `syoboi_jp_id` ASC
             LIMIT %d, %d";
