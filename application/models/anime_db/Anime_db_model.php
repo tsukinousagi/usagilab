@@ -54,7 +54,8 @@ class Anime_db_model extends CI_Model {
         //丟進迴圈跑, 略過不需要處理的項目
 
         foreach($titles as $t) {
-            $this->msg(sprintf('處理項目: %s(%d)', $t['title'], $t['id']));
+            //$this->msg(sprintf('處理項目: %s(%d)', $t['title'], $t['id']));
+            //$this->msg('.', 0);
             //先查db看這作品是不是需要再處理
             $title_exists = $this->check_update_status($t['id']);
             if ($title_exists <> 'ok') {
@@ -131,7 +132,8 @@ class Anime_db_model extends CI_Model {
                     break;
                 }
             } else {
-                $this->msg('略過');
+                //$this->msg('略過');
+                $this->msg('.', 0);
             }
         }
 
@@ -351,6 +353,22 @@ class Anime_db_model extends CI_Model {
         } else {
             return FALSE;
         }
+    }
+
+    //取得資料庫內容用JSON輸出
+    public function api_get_titles($begin, $count) {
+        $sql = "SELECT `syoboi_jp_id`, `title_jp`, `title_zh`
+            FROM `anime_title`
+            ORDER BY `syoboi_jp_id` ASC
+            LIMIT %d, %d";
+        $sql = sprintf($sql, $begin, $count);
+        $query = $this->db->query($sql);
+        if ($query) {
+            $ret = $query->result_array();
+        } else {
+            $ret = array();
+        }
+        return $ret;
     }
 
     //取得快取內容

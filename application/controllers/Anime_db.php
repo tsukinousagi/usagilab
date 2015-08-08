@@ -46,4 +46,10 @@ class Anime_db extends CI_Controller {
 
     }
 
+    public function api_get_titles($begin = 0, $count = 100) {
+        $this->load->model('anime_db/anime_db_model');
+        $ret = $this->anime_db_model->api_get_titles($begin, $count);
+        echo(json_encode($ret));
+    }
+
 }
