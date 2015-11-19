@@ -376,7 +376,7 @@ class Anime_db_model extends CI_Model {
         $sql = sprintf("INSERT INTO `anime_title` (
                         `title_jp`, `title_zh`, `title_en`, `syoboi_jp_id`, `parent_syoboi_jp_id`, `update_flag`, `update_at`
                         ) VALUES (
-                            %s, %s, %d, %d, %d, NOW())",
+                            %s, %s, %s, %d, %d, %d, NOW())",
                             $this->db->escape($data['title_jp']),
                             $this->db->escape($data['title_zh']),
                             $this->db->escape($data['title_en']),
